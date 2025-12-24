@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>내 예약 - 교육 신청 시스템</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+
+<body>
+    <div class="my-reservations">
+        <header class="header">
+            <div class="header__container">
+                <h1 class="header__logo">교육 신청 시스템</h1>
+                <nav class="header__nav">
+                    <a href="my-reservations.html" class="header__nav-item active">내 예약</a>
+                    <a href="apply.html" class="header__nav-item">예약 신청</a>
+                    <a href="my-info.html" class="header__nav-item">내 정보</a>
+                </nav>
+                <button class="header__logout" onclick="handleLogout()">로그아웃</button>
+            </div>
+        </header>
+
+        <main class="main">
+            <div class="main__container">
+                <div class="page-header">
+                    <h2 class="page-title">내 예약 목록</h2>
+                    <a href="apply.html" class="btn btn-primary">새 예약 신청</a>
+                </div>
+
+                <div class="table-wrapper">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>교육명</th>
+                                <th>유형</th>
+                                <th>일시</th>
+                                <th>장소</th>
+                                <th>신청 인원</th>
+                                <th>상태</th>
+                                <th>관리</th>
+                            </tr>
+                        </thead>
+                        <tbody id="reservationTable">
+                            <!-- 동적으로 채워짐 -->
+                        </tbody>
+                    </table>
+                </div>
+
+                <div id="emptyState" class="empty-state" style="display: none;">
+                    <p>예약 내역이 없습니다.</p>
+                    <a href="apply.html" class="btn btn-primary">교육 신청하기</a>
+                </div>
+            </div>
+        </main>
+
+        <!-- 상세 모달 -->
+        <div class="modal-overlay" id="detailModal" style="display: none;">
+            <div class="modal">
+                <div class="modal__header">
+                    <h3>예약 상세</h3>
+                    <button class="modal__close" onclick="closeModal('detailModal')">×</button>
+                </div>
+                <div class="modal__body" id="modalBody">
+                    <!-- 동적으로 채워짐 -->
+                </div>
+                <div class="modal__footer">
+                    <button class="btn btn-danger" id="cancelBtn" style="display: none;">예약 취소</button>
+                    <button class="btn btn-secondary" onclick="closeModal('detailModal')">닫기</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/data.js"></script>
+    <script src="js/app.js"></script>
+    <script>
+        const user = checkAuth();
+        if (!user) throw new Error('Not authenticated');
+
+        let currentReservation = null;
+
+        function renderReservations() {
+            const reservations = getReservations(user.id);
+            const tableBody = document.getElementById('reservationTable');
+            const emptyState = document.getElementById('emptyState');
+
+            if (reservations.length === 0) {
+                tableBody.innerHTML = '';
+                emptyState.style.display = 'block';
+                return;
+            }
+
+            emptyState.style.display = 'none';
+            tableBody.innerHTML = reservations.map(r => `
+        <tr>
+          <td class="td-name">${escapeHtml(r.educationName)}</td>
+          <td>
+            <span class="type-badge type--${r.type === '온라인' ? 'online' : 'offline'}">
+              ${r.type}
+            </span>
+          </td>
+          <td class="td-date">
+            ${r.date}<br>
+            <span class="time">${r.time}</span>
+          </td>
+          <td>${escapeHtml(r.location)}</td>
+          <td>${r.applicants.length}명</td>
+          <td>
+            <span class="status-badge ${getStatusClass(r.status)}">
+              ${r.status}
+            </span>
+          </td>
+          <td class="td-actions">
+            <button class="btn-detail" onclick="showDetail(${r.id})">상세</button>
+            ${(r.status === '신청완료' || r.status === '확정') ?
+                    `<button class="btn-cancel" onclick="cancelReservation(${r.id})">취소</button>` : ''}
+          </td>
+        </tr>
+      `).join('');
+        }
+
+        function showDetail(id) {
+            const reservations = getReservations(user.id);
+            currentReservation = reservations.find(r => r.id === id);
+
+            if (!currentReservation) return;
+
+            const modalBody = document.getElementById('modalBody');
+            const cancelBtn = document.getElementById('cancelBtn');
+
+            modalBody.innerHTML = `
+        <div class="detail-section">
+          <h4>교육 정보</h4>
+          <p><strong>교육명:</strong> ${escapeHtml(currentReservation.educationName)}</p>
+          <p><strong>유형:</strong> ${currentReservation.type}</p>
+          <p><strong>일시:</strong> ${currentReservation.date} ${currentReservation.time}</p>
+          <p><strong>장소:</strong> ${escapeHtml(currentReservation.location)}</p>
+          <p><strong>상태:</strong>
+            <span class="status-badge ${getStatusClass(currentReservation.status)}">
+              ${currentReservation.status}
+            </span>
+          </p>
+        </div>
+
+        <div class="detail-section">
+          <h4>신청자 목록 (${currentReservation.applicants.length}명)</h4>
+          <table style="width: 100%;">
+            <thead>
+              <tr>
+                <th>이름</th>
+                <th>연락처</th>
+                <th>회사</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${currentReservation.applicants.map(a => `
+                <tr>
+                  <td>${escapeHtml(a.name)}</td>
+                  <td>${escapeHtml(a.phone)}</td>
+                  <td>${escapeHtml(a.company)}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </div>
+      `;
+
+            if (currentReservation.status === '신청완료' || currentReservation.status === '확정') {
+                cancelBtn.style.display = 'block';
+                cancelBtn.onclick = () => cancelReservation(currentReservation.id);
+            } else {
+                cancelBtn.style.display = 'none';
+            }
+
+            openModal('detailModal');
+        }
+
+        function cancelReservation(id) {
+            if (confirm('예약을 취소하시겠습니까?')) {
+                updateReservationStatus(id, '취소');
+                closeModal('detailModal');
+                renderReservations();
+            }
+        }
+
+        // 모달 외부 클릭 시 닫기
+        document.getElementById('detailModal').addEventListener('click', function (e) {
+            if (e.target === this) closeModal('detailModal');
+        });
+
+        renderReservations();
+    </script>
+</body>
+
+</html>

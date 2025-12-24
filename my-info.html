@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>내 정보 - 교육 신청 시스템</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+
+<body>
+    <div class="my-info">
+        <header class="header">
+            <div class="header__container">
+                <h1 class="header__logo">교육 신청 시스템</h1>
+                <nav class="header__nav">
+                    <a href="my-reservations.html" class="header__nav-item">내 예약</a>
+                    <a href="apply.html" class="header__nav-item">예약 신청</a>
+                    <a href="my-info.html" class="header__nav-item active">내 정보</a>
+                </nav>
+                <button class="header__logout" onclick="handleLogout()">로그아웃</button>
+            </div>
+        </header>
+
+        <main class="main">
+            <div class="main__container">
+                <h2 class="page-title">내 정보</h2>
+
+                <div class="info-card">
+                    <div class="info-card__header">
+                        <div class="user-profile">
+                            <div class="user-profile__avatar" id="userAvatar">홍</div>
+                            <div class="user-profile__info">
+                                <h3 id="userName">홍길동</h3>
+                                <span class="grade-badge" id="userGradeBadge">정회원</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="info-card__body">
+                        <div class="info-section">
+                            <h4>기본 정보</h4>
+                            <div class="info-grid">
+                                <div class="info-item">
+                                    <span class="info-item__label">이메일</span>
+                                    <span class="info-item__value" id="userEmail">-</span>
+                                </div>
+                                <div class="info-item">
+                                    <span class="info-item__label">연락처</span>
+                                    <span class="info-item__value" id="userPhone">-</span>
+                                </div>
+                                <div class="info-item">
+                                    <span class="info-item__label">소속 회사</span>
+                                    <span class="info-item__value" id="userCompany">-</span>
+                                </div>
+                                <div class="info-item">
+                                    <span class="info-item__label">지역</span>
+                                    <span class="info-item__value" id="userRegion">-</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="info-section">
+                            <h4>회원 등급 정보</h4>
+                            <div class="membership-info">
+                                <div class="membership-box">
+                                    <span class="membership-box__label">회원 등급</span>
+                                    <span class="membership-box__value" id="userGrade">-</span>
+                                </div>
+                                <div class="membership-box">
+                                    <span class="membership-box__label">가입일</span>
+                                    <span class="membership-box__value" id="userJoinDate">-</span>
+                                </div>
+                                <div class="membership-box">
+                                    <span class="membership-box__label">멤버십 만료일</span>
+                                    <span class="membership-box__value" id="userExpiry">-</span>
+                                </div>
+                                <div class="membership-box highlight">
+                                    <span class="membership-box__label">남은 기간</span>
+                                    <span class="membership-box__value" id="userDaysRemaining">-</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="info-section">
+                            <h4>등급별 혜택</h4>
+                            <div class="benefits">
+                                <div class="benefit-card" id="regularBenefits">
+                                    <h5>정회원</h5>
+                                    <ul>
+                                        <li>모든 교육 프로그램 수강 가능</li>
+                                        <li>조찬 포럼 참석 가능</li>
+                                        <li>5가지 포럼 모두 참석 가능</li>
+                                        <li>우선 예약권</li>
+                                    </ul>
+                                </div>
+                                <div class="benefit-card" id="educationBenefits">
+                                    <h5>교육회원</h5>
+                                    <ul>
+                                        <li>기본 교육 프로그램 수강 가능</li>
+                                        <li>일부 포럼 참석 가능</li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="js/data.js"></script>
+    <script src="js/app.js"></script>
+    <script>
+        const user = checkAuth();
+        if (!user) throw new Error('Not authenticated');
+
+        // 사용자 정보 표시
+        document.getElementById('userAvatar').textContent = user.name.charAt(0);
+        document.getElementById('userName').textContent = user.name;
+        document.getElementById('userEmail').textContent = user.email;
+        document.getElementById('userPhone').textContent = user.phone;
+        document.getElementById('userCompany').textContent = user.company;
+        document.getElementById('userRegion').textContent = user.region;
+        document.getElementById('userGrade').textContent = user.grade;
+        document.getElementById('userJoinDate').textContent = user.joinDate;
+        document.getElementById('userExpiry').textContent = user.membershipExpiry;
+        document.getElementById('userDaysRemaining').textContent = getDaysRemaining(user.membershipExpiry) + '일';
+
+        // 등급 배지
+        const gradeBadge = document.getElementById('userGradeBadge');
+        gradeBadge.textContent = user.grade;
+        gradeBadge.className = 'grade-badge ' + getGradeClass(user.grade);
+
+        // 혜택 카드 활성화
+        if (user.grade === '정회원') {
+            document.getElementById('regularBenefits').classList.add('active');
+        } else {
+            document.getElementById('educationBenefits').classList.add('active');
+        }
+    </script>
+</body>
+
+</html>

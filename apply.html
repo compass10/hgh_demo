@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>예약 신청 - 교육 신청 시스템</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+
+<body>
+    <div class="reservation-apply">
+        <header class="header">
+            <div class="header__container">
+                <h1 class="header__logo">교육 신청 시스템</h1>
+                <nav class="header__nav">
+                    <a href="my-reservations.html" class="header__nav-item">내 예약</a>
+                    <a href="apply.html" class="header__nav-item active">예약 신청</a>
+                    <a href="my-info.html" class="header__nav-item">내 정보</a>
+                </nav>
+                <button class="header__logout" onclick="handleLogout()">로그아웃</button>
+            </div>
+        </header>
+
+        <main class="main">
+            <div class="main__container">
+                <!-- Progress Steps -->
+                <div class="progress-steps">
+                    <div class="progress-step active" id="step1Indicator">
+                        <span class="progress-step__number">1</span>
+                        <span class="progress-step__label">교육 선택</span>
+                    </div>
+                    <div class="progress-step__line"></div>
+                    <div class="progress-step" id="step2Indicator">
+                        <span class="progress-step__number">2</span>
+                        <span class="progress-step__label">유형 선택</span>
+                    </div>
+                    <div class="progress-step__line"></div>
+                    <div class="progress-step" id="step3Indicator">
+                        <span class="progress-step__number">3</span>
+                        <span class="progress-step__label">신청자 정보</span>
+                    </div>
+                </div>
+
+                <!-- Step 1: 교육 선택 -->
+                <div class="step-content" id="step1">
+                    <h2 class="step-title">교육 프로그램을 선택하세요</h2>
+                    <div class="education-grid" id="educationGrid">
+                        <!-- 동적으로 채워짐 -->
+                    </div>
+                </div>
+
+                <!-- Step 2: 유형 선택 -->
+                <div class="step-content" id="step2" style="display: none;">
+                    <button class="btn-back" onclick="goToStep(1)">← 이전</button>
+                    <h2 class="step-title" id="selectedEducationName"></h2>
+                    <p class="step-subtitle">참여 유형을 선택하세요</p>
+                    <p class="step-datetime" id="selectedEducationDateTime"></p>
+
+                    <div class="type-selection" id="typeSelection">
+                        <!-- 동적으로 채워짐 -->
+                    </div>
+                </div>
+
+                <!-- Step 3: 신청자 정보 -->
+                <div class="step-content" id="step3" style="display: none;">
+                    <button class="btn-back" onclick="goToStep(2)">← 이전</button>
+                    <h2 class="step-title">신청자 정보 입력</h2>
+                    <div class="selected-info" id="selectedInfo">
+                        <!-- 동적으로 채워짐 -->
+                    </div>
+
+                    <form class="applicant-form" id="applicantForm">
+                        <div id="applicantsContainer">
+                            <!-- 동적으로 채워짐 -->
+                        </div>
+
+                        <button type="button" class="btn-add" id="addApplicantBtn" onclick="addApplicant()">
+                            + 신청자 추가
+                        </button>
+
+                        <div class="form-actions">
+                            <button type="submit" class="btn-submit">
+                                예약 신청하기
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="js/data.js"></script>
+    <script src="js/app.js"></script>
+    <script>
+        const user = checkAuth();
+        if (!user) throw new Error('Not authenticated');
+
+        let currentStep = 1;
+        let selectedEducation = null;
+        let selectedType = null;
+        let applicants = [{ name: '', phone: '', company: user.company }];
+
+        // Step 1: 교육 목록 렌더링
+        function renderEducations() {
+            const grid = document.getElementById('educationGrid');
+            grid.innerHTML = DemoData.educations.map(edu => `
+        <div class="education-card" onclick="selectEducation(${edu.id})">
+          <h3 class="education-card__title">${escapeHtml(edu.name)}</h3>
+          <p class="education-card__desc">${escapeHtml(edu.description)}</p>
+          <p class="education-card__datetime">${edu.date} ${edu.time}</p>
+          <div class="education-card__capacity">
+            <div class="capacity-item">
+              <span class="type-badge type--offline">현장</span>
+              <span class="${edu.offline.remaining <= 5 ? 'low' : ''}">
+                잔여 ${edu.offline.remaining}석
+              </span>
+            </div>
+            <div class="capacity-item">
+              <span class="type-badge type--online">온라인</span>
+              <span class="${edu.online.remaining <= 5 ? 'low' : ''}">
+                잔여 ${edu.online.remaining}석
+              </span>
+            </div>
+          </div>
+        </div>
+      `).join('');
+        }
+
+        function selectEducation(eduId) {
+            selectedEducation = DemoData.educations.find(e => e.id === eduId);
+            if (selectedEducation) {
+                goToStep(2);
+            }
+        }
+
+        // Step 2: 유형 선택
+        function renderTypeSelection() {
+            document.getElementById('selectedEducationName').textContent = selectedEducation.name;
+            document.getElementById('selectedEducationDateTime').textContent =
+                `${selectedEducation.date} ${selectedEducation.time}`;
+
+            const typeSelection = document.getElementById('typeSelection');
+            typeSelection.innerHTML = `
+        <div class="type-card ${selectedEducation.offline.remaining === 0 ? 'disabled' : ''}" 
+             onclick="${selectedEducation.offline.remaining > 0 ? "selectType('offline')" : ''}">
+          <div class="type-card__header">
+            <span class="type-badge type--offline">현장</span>
+          </div>
+          <div class="type-card__body">
+            <p class="type-card__location">${escapeHtml(selectedEducation.offline.location)}</p>
+            <p class="type-card__remaining ${selectedEducation.offline.remaining <= 5 ? 'low' : ''}">
+              ${selectedEducation.offline.remaining === 0 ? '마감' :
+                    `잔여 ${selectedEducation.offline.remaining}/${selectedEducation.offline.capacity}석`}
+            </p>
+          </div>
+        </div>
+
+        <div class="type-card ${selectedEducation.online.remaining === 0 ? 'disabled' : ''}"
+             onclick="${selectedEducation.online.remaining > 0 ? "selectType('online')" : ''}">
+          <div class="type-card__header">
+            <span class="type-badge type--online">온라인</span>
+          </div>
+          <div class="type-card__body">
+            <p class="type-card__location">${escapeHtml(selectedEducation.online.location)}</p>
+            <p class="type-card__remaining ${selectedEducation.online.remaining <= 5 ? 'low' : ''}">
+              ${selectedEducation.online.remaining === 0 ? '마감' :
+                    `잔여 ${selectedEducation.online.remaining}/${selectedEducation.online.capacity}석`}
+            </p>
+          </div>
+        </div>
+      `;
+        }
+
+        function selectType(type) {
+            selectedType = type;
+            goToStep(3);
+        }
+
+        // Step 3: 신청자 정보
+        function renderApplicantForm() {
+            const typeInfo = selectedEducation[selectedType];
+            const typeLabel = selectedType === 'offline' ? '현장' : '온라인';
+
+            document.getElementById('selectedInfo').innerHTML = `
+        <p><strong>교육:</strong> ${escapeHtml(selectedEducation.name)}</p>
+        <p><strong>일시:</strong> ${selectedEducation.date} ${selectedEducation.time}</p>
+        <p><strong>유형:</strong> ${typeLabel}</p>
+        <p><strong>장소:</strong> ${escapeHtml(typeInfo.location)}</p>
+      `;
+
+            renderApplicants();
+        }
+
+        function renderApplicants() {
+            const container = document.getElementById('applicantsContainer');
+            container.innerHTML = applicants.map((a, i) => `
+        <div class="applicant-card">
+          <div class="applicant-card__header">
+            <span>신청자 ${i + 1}</span>
+            ${applicants.length > 1 ?
+                    `<button type="button" class="btn-remove" onclick="removeApplicant(${i})">삭제</button>` : ''}
+          </div>
+          <div class="applicant-card__fields">
+            <div class="form-field">
+              <label>이름</label>
+              <input type="text" value="${escapeHtml(a.name)}" 
+                     onchange="updateApplicant(${i}, 'name', this.value)" 
+                     placeholder="이름을 입력하세요" required>
+            </div>
+            <div class="form-field">
+              <label>연락처</label>
+              <input type="tel" value="${escapeHtml(a.phone)}" 
+                     onchange="updateApplicant(${i}, 'phone', this.value)" 
+                     placeholder="010-0000-0000" required>
+            </div>
+            <div class="form-field">
+              <label>회사명</label>
+              <input type="text" value="${escapeHtml(a.company)}" 
+                     onchange="updateApplicant(${i}, 'company', this.value)" 
+                     placeholder="회사명을 입력하세요" required>
+            </div>
+          </div>
+        </div>
+      `).join('');
+
+            // 최대 인원 체크
+            const maxApplicants = selectedEducation[selectedType].remaining;
+            const addBtn = document.getElementById('addApplicantBtn');
+            addBtn.style.display = applicants.length >= maxApplicants ? 'none' : 'block';
+        }
+
+        function updateApplicant(index, field, value) {
+            applicants[index][field] = value;
+        }
+
+        function addApplicant() {
+            const maxApplicants = selectedEducation[selectedType].remaining;
+            if (applicants.length < maxApplicants) {
+                applicants.push({ name: '', phone: '', company: user.company });
+                renderApplicants();
+            }
+        }
+
+        function removeApplicant(index) {
+            if (applicants.length > 1) {
+                applicants.splice(index, 1);
+                renderApplicants();
+            }
+        }
+
+        // 스텝 이동
+        function goToStep(step) {
+            currentStep = step;
+
+            // 모든 스텝 숨기기
+            document.getElementById('step1').style.display = 'none';
+            document.getElementById('step2').style.display = 'none';
+            document.getElementById('step3').style.display = 'none';
+
+            // 인디케이터 업데이트
+            document.getElementById('step1Indicator').classList.toggle('active', step >= 1);
+            document.getElementById('step2Indicator').classList.toggle('active', step >= 2);
+            document.getElementById('step3Indicator').classList.toggle('active', step >= 3);
+
+            // 현재 스텝 표시
+            if (step === 1) {
+                document.getElementById('step1').style.display = 'block';
+                selectedEducation = null;
+                selectedType = null;
+            } else if (step === 2) {
+                document.getElementById('step2').style.display = 'block';
+                selectedType = null;
+                renderTypeSelection();
+            } else if (step === 3) {
+                document.getElementById('step3').style.display = 'block';
+                applicants = [{ name: '', phone: '', company: user.company }];
+                renderApplicantForm();
+            }
+        }
+
+        // 폼 제출
+        document.getElementById('applicantForm').addEventListener('submit', function (e) {
+            e.preventDefault();
+
+            // 유효성 검사
+            const valid = applicants.every(a => a.name && a.phone && a.company);
+            if (!valid) {
+                alert('모든 신청자 정보를 입력해주세요.');
+                return;
+            }
+
+            // 예약 추가
+            const typeInfo = selectedEducation[selectedType];
+            const newReservation = {
+                userId: user.id,
+                educationId: selectedEducation.id,
+                educationName: selectedEducation.name,
+                type: selectedType === 'offline' ? '현장' : '온라인',
+                date: selectedEducation.date,
+                time: selectedEducation.time,
+                location: typeInfo.location,
+                status: '신청완료',
+                appliedAt: new Date().toISOString().split('T')[0],
+                applicants: [...applicants]
+            };
+
+            addReservation(newReservation);
+            alert('예약 신청이 완료되었습니다!');
+            window.location.href = 'my-reservations.html';
+        });
+
+        // 초기화
+        renderEducations();
+    </script>
+</body>
+
+</html>

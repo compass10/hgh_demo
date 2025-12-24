@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>로그인 - 교육 신청 시스템</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div class="login">
+    <div class="login__card">
+      <h1 class="login__title">교육 신청 시스템</h1>
+      <p class="login__subtitle">로그인하여 교육을 신청하세요</p>
+
+      <form class="login__form" id="loginForm">
+        <div class="login__field">
+          <label class="login__label">이메일</label>
+          <input
+            type="email"
+            name="email"
+            class="login__input"
+            placeholder="이메일을 입력하세요"
+            id="email"
+            required
+          >
+        </div>
+
+        <div class="login__field">
+          <label class="login__label">비밀번호</label>
+          <input
+            type="password"
+            name="password"
+            class="login__input"
+            placeholder="비밀번호를 입력하세요"
+            id="password"
+            required
+          >
+        </div>
+
+        <button type="submit" class="login__button">
+          로그인
+        </button>
+      </form>
+
+      <p class="login__demo-notice">
+        * 데모 계정: demo@test.com / 1234<br>
+        * 관리자 계정: admin@test.com / admin
+      </p>
+    </div>
+  </div>
+
+  <script src="js/data.js"></script>
+  <script src="js/app.js"></script>
+  <script>
+    document.getElementById('loginForm').addEventListener('submit', function(e) {
+      e.preventDefault();
+      
+      const email = document.getElementById('email').value;
+      const password = document.getElementById('password').value;
+      
+      const user = login(email, password);
+      
+      if (user) {
+        if (user.isAdmin) {
+          window.location.href = 'admin/index.html';
+        } else {
+          window.location.href = 'my-reservations.html';
+        }
+      } else {
+        alert('이메일 또는 비밀번호가 올바르지 않습니다.');
+      }
+    });
+
+    // 이미 로그인된 경우 리다이렉트
+    const currentUser = getCurrentUser();
+    if (currentUser) {
+      if (currentUser.isAdmin) {
+        window.location.href = 'admin/index.html';
+      } else {
+        window.location.href = 'my-reservations.html';
+      }
+    }
+  </script>
+</body>
+</html>
